@@ -12,19 +12,50 @@ app.get('/', (req, res) => {
   })
 })
 
-app.get('/api/test-db', async (req, res) => {
+app.get('/api/monitors', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT 1 AS result')
+    const [rows] = await pool.query(
+      'SELECT * FROM monitors ORDER BY created_at DESC'
+    )
 
-    res.json({
-      message: 'Database connected successfully',
-      result: rows[0].result,
-    })
+    res.json(rows)
   } catch (error) {
     console.error(error)
 
     res.status(500).json({
-      message: 'Database connection failed',
+      message: 'Failed to fetch monitors',
+    })
+  }
+})
+
+app.post('/api/monitors', async (req, res) => {
+  try {
+    const { name, url, interval } = req.body
+
+    if (!name || !url || !interval) {
+      return res.status(400).json({
+        message: 'Name, URL and interval are required.',
+      })
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO monitors
+       (name, url, interval_minutes, status)
+       VALUES (?, ?, ?, ?)`,
+      [name, url, interval, 'Pending']
+    )
+
+    const [rows] = await pool.query(
+      'SELECT * FROM monitors WHERE id = ?',
+      [result.insertId]
+    )
+
+    res.status(201).json(rows[0])
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      message: 'Failed to create monitor',
     })
   }
 })

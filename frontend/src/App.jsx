@@ -1,21 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import StatCard from './components/StatCard'
 import MonitorCard from './components/MonitorCard'
 import AddMonitorModal from './components/AddMonitorModal'
-import { monitors as initialMonitors, dashboardStats } from './data/mockData'
+import { dashboardStats } from './data/mockData'
+import { getMonitors, createMonitor } from './services/monitorService'
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [monitors, setMonitors] = useState(initialMonitors)
+  const [monitors, setMonitors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  function handleAddMonitor(monitor) {
-    setMonitors((currentMonitors) => [
-      ...currentMonitors,
-      monitor,
-    ])
+  useEffect(() => {
+    async function loadMonitors() {
+      try {
+        const data = await getMonitors()
+        setMonitors(data)
+      } catch (error) {
+        setError('Failed to load monitors.')
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    setIsModalOpen(false)
+    loadMonitors()
+  }, [])
+
+  async function handleAddMonitor(monitor) {
+    try {
+      const newMonitor = await createMonitor(monitor)
+
+      setMonitors((currentMonitors) => [
+        ...currentMonitors,
+        newMonitor,
+      ])
+
+      setIsModalOpen(false)
+    } catch (error) {
+      setError('Failed to create monitor.')
+    }
   }
 
   return (
@@ -69,17 +93,37 @@ function App() {
               </button>
             </div>
 
-            <div className="space-y-3">
-              {monitors.map((monitor) => (
-                <MonitorCard
-                  key={monitor.id}
-                  name={monitor.name}
-                  url={monitor.url}
-                  status={monitor.status}
-                  latency={monitor.latency}
-                />
-              ))}
-            </div>
+            {error && (
+              <p className="mb-4 text-sm text-red-400">
+                {error}
+              </p>
+            )}
+
+            {loading ? (
+              <p className="text-sm text-slate-500">
+                Loading monitors...
+              </p>
+            ) : monitors.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No monitors yet.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {monitors.map((monitor) => (
+                  <MonitorCard
+                    key={monitor.id}
+                    name={monitor.name}
+                    url={monitor.url}
+                    status={monitor.status}
+                    latency={
+                      monitor.latency_ms
+                        ? `${monitor.latency_ms}ms`
+                        : '—'
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </main>
