@@ -1,9 +1,23 @@
+import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import StatCard from './components/StatCard'
 import MonitorCard from './components/MonitorCard'
-import { monitors, dashboardStats } from './data/mockData'
+import AddMonitorModal from './components/AddMonitorModal'
+import { monitors as initialMonitors, dashboardStats } from './data/mockData'
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [monitors, setMonitors] = useState(initialMonitors)
+
+  function handleAddMonitor(monitor) {
+    setMonitors((currentMonitors) => [
+      ...currentMonitors,
+      monitor,
+    ])
+
+    setIsModalOpen(false)
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar />
@@ -47,7 +61,10 @@ function App() {
                 </p>
               </div>
 
-              <button className="rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              >
                 + Add monitor
               </button>
             </div>
@@ -66,6 +83,13 @@ function App() {
           </section>
         </div>
       </main>
+
+      {isModalOpen && (
+        <AddMonitorModal
+          onClose={() => setIsModalOpen(false)}
+          onAddMonitor={handleAddMonitor}
+        />
+      )}
     </div>
   )
 }
