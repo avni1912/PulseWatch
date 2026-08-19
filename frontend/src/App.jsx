@@ -3,7 +3,6 @@ import Sidebar from './components/Sidebar'
 import StatCard from './components/StatCard'
 import MonitorCard from './components/MonitorCard'
 import AddMonitorModal from './components/AddMonitorModal'
-import { dashboardStats } from './data/mockData'
 import { getMonitors, createMonitor } from './services/monitorService'
 
 function App() {
@@ -11,6 +10,24 @@ function App() {
   const [monitors, setMonitors] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const operationalCount = monitors.filter(
+    (monitor) => monitor.status === 'Operational'
+  ).length
+
+  const downCount = monitors.filter(
+    (monitor) => monitor.status === 'Down'
+  ).length
+
+  const averageLatency =
+    monitors.length > 0
+      ? Math.round(
+          monitors.reduce(
+            (total, monitor) => total + (monitor.latency_ms || 0),
+            0
+          ) / monitors.length
+        )
+      : 0
 
   useEffect(() => {
     async function loadMonitors() {
@@ -63,14 +80,29 @@ function App() {
           </header>
 
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {dashboardStats.map((stat) => (
-              <StatCard
-                key={stat.label}
-                label={stat.label}
-                value={stat.value}
-                description={stat.description}
-              />
-            ))}
+            <StatCard
+              label="Total monitors"
+              value={monitors.length}
+              description="Currently configured"
+            />
+
+            <StatCard
+              label="Operational"
+              value={operationalCount}
+              description="Healthy monitors"
+            />
+
+            <StatCard
+              label="Down"
+              value={downCount}
+              description="Currently unavailable"
+            />
+
+            <StatCard
+              label="Avg. latency"
+              value={`${averageLatency}ms`}
+              description="Across all monitors"
+            />
           </section>
 
           <section className="mt-10">

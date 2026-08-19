@@ -1,9 +1,13 @@
 const express = require('express')
+const cors = require('cors')
 const pool = require('./db')
+const { checkMonitor } = require('./services/monitorChecker')
+const { startMonitorScheduler } = require('./services/monitorScheduler')
 
 const app = express()
 const PORT = 5000
 
+app.use(cors())
 app.use(express.json())
 
 app.get('/', (req, res) => {
@@ -59,6 +63,49 @@ app.post('/api/monitors', async (req, res) => {
     })
   }
 })
+
+app.get('/api/monitors/:id/check', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [rows] = await pool.query(
+      'SELECT * FROM monitors WHERE id = ?',
+      [id]
+    )
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: 'Monitor not found',
+      })
+    }
+
+    const monitor = rows[0]
+
+    const result = await checkMonitor(monitor.url)
+
+    await pool.query(
+      `UPDATE monitors
+       SET status = ?, latency_ms = ?
+       WHERE id = ?`,
+      [result.status, result.latency, id]
+    )
+
+    const [updatedRows] = await pool.query(
+      'SELECT * FROM monitors WHERE id = ?',
+      [id]
+    )
+
+    res.json(updatedRows[0])
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      message: 'Failed to check monitor',
+    })
+  }
+})
+
+startMonitorScheduler()
 
 app.listen(PORT, () => {
   console.log(`PulseWatch API running on http://localhost:${PORT}`)
