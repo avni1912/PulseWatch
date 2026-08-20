@@ -20,6 +20,20 @@ async function runMonitorCheck(monitor) {
   }
 }
 
+function scheduleMonitor(monitor) {
+  const interval = monitor.interval_minutes * 60 * 1000
+
+  runMonitorCheck(monitor)
+
+  setInterval(() => {
+    runMonitorCheck(monitor)
+  }, interval)
+
+  console.log(
+    `Scheduled ${monitor.name} every ${monitor.interval_minutes} minute(s)`
+  )
+}
+
 async function startMonitorScheduler() {
   try {
     const [monitors] = await pool.query(
@@ -27,13 +41,7 @@ async function startMonitorScheduler() {
     )
 
     for (const monitor of monitors) {
-      await runMonitorCheck(monitor)
-
-      const interval = monitor.interval_minutes * 60 * 1000
-
-      setInterval(() => {
-        runMonitorCheck(monitor)
-      }, interval)
+      scheduleMonitor(monitor)
     }
 
     console.log(`Scheduler started for ${monitors.length} monitor(s)`)
@@ -44,4 +52,5 @@ async function startMonitorScheduler() {
 
 module.exports = {
   startMonitorScheduler,
+  scheduleMonitor,
 }

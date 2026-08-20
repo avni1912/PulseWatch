@@ -6,7 +6,7 @@ function AddMonitorModal({ onClose, onAddMonitor }) {
   const [interval, setInterval] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
     if (!name.trim()) {
@@ -24,16 +24,15 @@ function AddMonitorModal({ onClose, onAddMonitor }) {
       return
     }
 
-    const newMonitor = {
-      id: Date.now(),
-      name: name.trim(),
-      url: url.trim(),
-      status: 'Pending',
-      latency: '—',
-      interval: Number(interval),
+    try {
+      await onAddMonitor({
+        name: name.trim(),
+        url: url.trim(),
+        interval: Number(interval),
+      })
+    } catch (error) {
+      setError('Failed to create monitor.')
     }
-
-    onAddMonitor(newMonitor)
   }
 
   return (

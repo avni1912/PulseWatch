@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
 const { checkMonitor } = require('./services/monitorChecker')
-const { startMonitorScheduler } = require('./services/monitorScheduler')
+const { startMonitorScheduler, scheduleMonitor } = require('./services/monitorScheduler')
 
 const app = express()
 const PORT = 5000
@@ -54,7 +54,11 @@ app.post('/api/monitors', async (req, res) => {
       [result.insertId]
     )
 
-    res.status(201).json(rows[0])
+    const newMonitor = rows[0]
+
+    scheduleMonitor(newMonitor)
+
+    res.status(201).json(newMonitor)
   } catch (error) {
     console.error(error)
 
