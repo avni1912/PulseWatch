@@ -34,6 +34,7 @@ function App() {
       try {
         const data = await getMonitors()
         setMonitors(data)
+        setError('')
       } catch (error) {
         setError('Failed to load monitors.')
       } finally {
@@ -42,6 +43,10 @@ function App() {
     }
 
     loadMonitors()
+
+    const interval = setInterval(loadMonitors, 30000)
+
+    return () => clearInterval(interval)
   }, [])
 
   async function handleAddMonitor(monitor) {
