@@ -3,13 +3,22 @@ import Sidebar from './components/Sidebar'
 import StatCard from './components/StatCard'
 import MonitorCard from './components/MonitorCard'
 import AddMonitorModal from './components/AddMonitorModal'
-import { getMonitors, createMonitor } from './services/monitorService'
+import { getMonitors, createMonitor, checkMonitorNow } from './services/monitorService'
+import useMonitorHistory from './hooks/useMonitorHistory'
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [monitors, setMonitors] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedMonitorId, setSelectedMonitorId] = useState(null)
+
+  const {
+    history,
+    loading: historyLoading,
+    error: historyError,
+    refreshHistory,
+  } = useMonitorHistory(selectedMonitorId)
 
   const operationalCount = monitors.filter(
     (monitor) => monitor.status === 'Operational'
@@ -63,6 +72,22 @@ function App() {
       setError('Failed to create monitor.')
     }
   }
+
+  async function handleCheckNow(monitorId) {
+  try {
+    setError(' ')
+    await checkMonitorNow(monitorId)
+
+    const data = await getMonitors()
+    setMonitors(data)
+
+    if (selectedMonitorId === monitorId) {
+      await refreshHistory()
+    }
+  } catch (error) {
+    setError('Failed to check monitor.')
+  }
+}
 
   return (
     <div className="flex min-h-screen bg-slate-950">
@@ -149,6 +174,7 @@ function App() {
                 {monitors.map((monitor) => (
                   <MonitorCard
                     key={monitor.id}
+                    id={monitor.id}
                     name={monitor.name}
                     url={monitor.url}
                     status={monitor.status}
@@ -157,11 +183,147 @@ function App() {
                         ? `${monitor.latency_ms}ms`
                         : '—'
                     }
+                    onClick={(id) => setSelectedMonitorId(id)}
+                    onCheckNow={handleCheckNow}
                   />
                 ))}
               </div>
             )}
           </section>
+
+          {selectedMonitorId && (
+            <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    Monitor history
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Recent health checks for this monitor.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedMonitorId(null)}
+                  className="text-sm text-slate-500 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+
+              {historyLoading ? (
+                <p className="mt-6 text-sm text-slate-500">
+                  Loading history...
+                </p>
+              ) : historyError ? (
+                <p className="mt-6 text-sm text-red-400">
+                  {historyError}
+                </p>
+              ) : history.length === 0 ? (
+                <p className="mt-6 text-sm text-slate-500">
+                  No history available.
+                </p>
+              ) : (
+                <>
+                  <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">
+                        Checks
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {history.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">
+                        Operational
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold text-emerald-400">
+                        {
+                          history.filter(
+                            (check) => check.status === 'Operational'
+                          ).length
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">
+                        Down
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold text-red-400">
+                        {
+                          history.filter(
+                            (check) => check.status === 'Down'
+                          ).length
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">
+                        Uptime
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {Math.round(
+                          (history.filter(
+                            (check) => check.status === 'Operational'
+                          ).length /
+                            history.length) *
+                            100
+                        )}
+                        %
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-2">
+                    {history.slice(0, 10).map((check) => (
+                      <div
+                        key={check.id}
+                        className="grid grid-cols-[1fr_auto_auto] items-center gap-4 rounded-xl bg-white/[0.03] px-4 py-3"
+                      >
+                        <div>
+                          <p
+                            className={`text-sm font-medium ${
+                              check.status === 'Operational'
+                                ? 'text-emerald-400'
+                                : 'text-red-400'
+                            }`}
+                          >
+                            {check.status}
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-500">
+                            {check.status_code != null
+                              ? `HTTP ${check.status_code}`
+                              : 'No response'}
+                          </p>
+                        </div>
+
+                        <p className="text-sm text-slate-400">
+                          {check.latency_ms != null
+                            ? `${check.latency_ms}ms`
+                            : '—'}
+                        </p>
+
+                        <p className="text-xs text-slate-500">
+                          {new Date(check.checked_at).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+          
         </div>
       </main>
 

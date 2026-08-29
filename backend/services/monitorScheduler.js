@@ -6,6 +6,17 @@ async function runMonitorCheck(monitor) {
     const result = await checkMonitor(monitor.url)
 
     await pool.query(
+      `INSERT INTO monitor_checks
+      (monitor_id, status, latency_ms, status_code)
+      VALUES (?, ?, ?, ?)`,
+      [
+        monitor.id,
+        result.status,
+        result.latency,
+        result.statusCode,
+      ]
+    )
+    await pool.query(
       `UPDATE monitors
        SET status = ?, latency_ms = ?
        WHERE id = ?`,

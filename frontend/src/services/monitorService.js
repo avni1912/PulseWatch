@@ -25,3 +25,30 @@ export async function createMonitor(monitor) {
 
   return response.json()
 }
+
+export async function getMonitorHistory(monitorId) {
+  const response = await fetch(
+    `${API_URL}/${monitorId}/history?t=${Date.now()}`,
+    {
+      cache: 'no-store',
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch monitor history')
+  }
+
+  return response.json()
+}
+
+export async function checkMonitorNow(monitorId) {
+  const response = await fetch(
+    `${API_URL}/${monitorId}/check`
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to check monitor')
+  }
+
+  return response.json()
+}

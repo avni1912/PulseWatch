@@ -111,6 +111,94 @@ app.get('/api/monitors/:id/check', async (req, res) => {
 
 startMonitorScheduler()
 
+app.get('/api/test/healthy', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Test API is operational',
+  })
+})
+
+app.get('/api/test/down', (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'Test API is down',
+  })
+})
+
+app.get('/api/monitors/:id/history', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [rows] = await pool.query(
+      `SELECT
+        id,
+        status,
+        latency_ms,
+        status_code,
+        checked_at
+       FROM monitor_checks
+       WHERE monitor_id = ?
+       ORDER BY checked_at DESC`,
+      [id]
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      message: 'Failed to fetch monitor history',
+    })
+  }
+})
+
+app.get('/api/monitors/:id/check', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [rows] = await pool.query(
+      'SELECT * FROM monitors WHERE id = ?',
+      [id]
+    )
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: 'Monitor not found',
+      })
+    }
+
+    const monitor = rows[0]
+    const result = await checkMonitor(monitor.url)
+
+    await pool.query(
+      `UPDATE monitors
+       SET status = ?, latency_ms = ?
+       WHERE id = ?`,
+      [result.status, result.latency, id]
+    )
+
+    await pool.query(
+      `INSERT INTO monitor_checks
+       (monitor_id, status, latency_ms, status_code)
+       VALUES (?, ?, ?, ?)`,
+      [id, result.status, result.latency, result.statusCode]
+    )
+
+    res.json({
+      id: Number(id),
+      status: result.status,
+      latency_ms: result.latency,
+      status_code: result.statusCode,
+    })
+  } catch (error) {
+    console.error(error)
+
+    res.status(500).json({
+      message: 'Monitor check failed',
+    })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`PulseWatch API running on http://localhost:${PORT}`)
 })
