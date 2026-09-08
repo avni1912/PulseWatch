@@ -1,6 +1,51 @@
 const pool = require('../db')
 const { checkMonitor } = require('./monitorChecker')
 
+async function createIncidentIfNeeded(monitorId) {
+  const [activeIncidents] = await pool.query(
+    `SELECT id
+     FROM incidents
+     WHERE monitor_id = ?
+       AND status = 'Active'
+     LIMIT 1`,
+    [monitorId]
+  )
+
+  if (activeIncidents.length === 0) {
+    await pool.query(
+      `INSERT INTO incidents
+       (monitor_id, status, started_at)
+       VALUES (?, 'Active', NOW())`,
+      [monitorId]
+    )
+
+    console.log(`Incident created for monitor ${monitorId}`)
+  }
+}
+
+async function resolveIncidentIfNeeded(monitorId) {
+  const [activeIncidents] = await pool.query(
+    `SELECT id
+     FROM incidents
+     WHERE monitor_id = ?
+       AND status = 'Active'
+     LIMIT 1`,
+    [monitorId]
+  )
+
+  if (activeIncidents.length > 0) {
+    await pool.query(
+      `UPDATE incidents
+       SET status = 'Resolved',
+           resolved_at = NOW()
+       WHERE id = ?`,
+      [activeIncidents[0].id]
+    )
+
+    console.log(`Incident resolved for monitor ${monitorId}`)
+  }
+}
+
 async function runMonitorCheck(monitor) {
   try {
     const result = await checkMonitor(monitor.url)
@@ -16,12 +61,23 @@ async function runMonitorCheck(monitor) {
         result.statusCode,
       ]
     )
+
     await pool.query(
       `UPDATE monitors
        SET status = ?, latency_ms = ?
        WHERE id = ?`,
-      [result.status, result.latency, monitor.id]
+      [
+        result.status,
+        result.latency,
+        monitor.id,
+      ]
     )
+
+    if (result.status === 'Down') {
+      await createIncidentIfNeeded(monitor.id)
+    } else if (result.status === 'Operational') {
+      await resolveIncidentIfNeeded(monitor.id)
+    }
 
     console.log(
       `Checked ${monitor.name}: ${result.status} (${result.latency ?? '—'}ms)`
@@ -55,7 +111,9 @@ async function startMonitorScheduler() {
       scheduleMonitor(monitor)
     }
 
-    console.log(`Scheduler started for ${monitors.length} monitor(s)`)
+    console.log(
+      `Scheduler started for ${monitors.length} monitor(s)`
+    )
   } catch (error) {
     console.error('Scheduler error:', error)
   }

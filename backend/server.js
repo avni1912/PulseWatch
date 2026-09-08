@@ -199,6 +199,99 @@ app.get('/api/monitors/:id/check', async (req, res) => {
   }
 })
 
+app.get('/api/incidents', async (req, res) => {
+  try {
+    const [incidents] = await pool.query(`
+      SELECT
+        incidents.id,
+        incidents.monitor_id,
+        monitors.name AS monitor_name,
+        monitors.url,
+        incidents.status,
+        incidents.started_at,
+        incidents.resolved_at
+      FROM incidents
+      JOIN monitors
+        ON monitors.id = incidents.monitor_id
+      ORDER BY incidents.started_at DESC
+    `)
+
+    res.json(incidents)
+  } catch (error) {
+    console.error('Failed to fetch incidents:', error)
+
+    res.status(500).json({
+      message: 'Failed to fetch incidents',
+    })
+  }
+})
+
+app.put('/api/monitors/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, url, interval_minutes } = req.body
+
+    if (!name || !url || !interval_minutes) {
+      return res.status(400).json({
+        message: 'Name, URL, and interval are required',
+      })
+    }
+
+    await pool.query(
+      `UPDATE monitors
+       SET name = ?, url = ?, interval_minutes = ?
+       WHERE id = ?`,
+      [name, url, interval_minutes, id]
+    )
+
+    const [monitors] = await pool.query(
+      'SELECT * FROM monitors WHERE id = ?',
+      [id]
+    )
+
+    if (monitors.length === 0) {
+      return res.status(404).json({
+        message: 'Monitor not found',
+      })
+    }
+
+    res.json(monitors[0])
+  } catch (error) {
+    console.error('Failed to update monitor:', error)
+
+    res.status(500).json({
+      message: 'Failed to update monitor',
+    })
+  }
+})
+
+app.delete('/api/monitors/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [result] = await pool.query(
+      'DELETE FROM monitors WHERE id = ?',
+      [id]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: 'Monitor not found',
+      })
+    }
+
+    res.json({
+      message: 'Monitor deleted successfully',
+    })
+  } catch (error) {
+    console.error('Failed to delete monitor:', error)
+
+    res.status(500).json({
+      message: 'Failed to delete monitor',
+    })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`PulseWatch API running on http://localhost:${PORT}`)
 })

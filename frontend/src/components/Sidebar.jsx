@@ -1,46 +1,52 @@
-function Sidebar() {
+function Sidebar({ activePage, onNavigate }) {
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-white/10 bg-slate-950 p-5 text-white">
-      <div className="mb-10">
-        <h1 className="text-xl font-bold tracking-tight">
-          PulseWatch
-        </h1>
+    <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-slate-950 lg:block">
+      <div className="sticky top-0 flex h-screen flex-col p-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-white">
+            PulseWatch
+          </h1>
 
-        <p className="mt-1 text-xs text-slate-500">
-          API Monitoring
-        </p>
-      </div>
+          <p className="mt-1 text-xs text-slate-500">
+            API monitoring platform
+          </p>
+        </div>
 
-      <nav className="space-y-2">
-        <button className="w-full rounded-xl bg-white/10 px-4 py-3 text-left text-sm font-medium text-white">
-          Overview
-        </button>
+        <nav className="mt-10 space-y-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('overview')}
+            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+              activePage === 'overview'
+                ? 'bg-white/[0.08] text-white'
+                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'
+            }`}
+          >
+            Overview
+          </button>
 
-        <button className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-white">
-          Monitors
-        </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('incidents')}
+            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+              activePage === 'incidents'
+                ? 'bg-white/[0.08] text-white'
+                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'
+            }`}
+          >
+            Incidents
+          </button>
+        </nav>
 
-        <button className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-white">
-          Incidents
-        </button>
+        <div className="mt-auto border-t border-white/10 pt-5">
+          <p className="text-xs text-slate-600">
+            PulseWatch
+          </p>
 
-        <button className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-white">
-          Analytics
-        </button>
-
-        <button className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-white">
-          Settings
-        </button>
-      </nav>
-
-      <div className="mt-auto border-t border-white/10 pt-4">
-        <p className="text-xs text-slate-500">
-          PulseWatch
-        </p>
-
-        <p className="mt-1 text-xs text-slate-600">
-          v1.0.0
-        </p>
+          <p className="mt-1 text-xs text-slate-700">
+            API Monitoring & Incident Tracking
+          </p>
+        </div>
       </div>
     </aside>
   )
