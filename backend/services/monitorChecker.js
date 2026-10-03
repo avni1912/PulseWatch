@@ -2,7 +2,9 @@ async function checkMonitor(url) {
   const startTime = Date.now()
 
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+    })
     const latency = Date.now() - startTime
 
     return {

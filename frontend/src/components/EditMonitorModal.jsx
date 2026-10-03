@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 function EditMonitorModal({ monitor, onClose, onUpdate }) {
   const [name, setName] = useState(monitor.name)
@@ -7,12 +7,6 @@ function EditMonitorModal({ monitor, onClose, onUpdate }) {
     monitor.interval_minutes
   )
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    setName(monitor.name)
-    setUrl(monitor.url)
-    setInterval(monitor.interval_minutes)
-  }, [monitor])
 
   async function handleSubmit(event) {
     event.preventDefault()

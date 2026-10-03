@@ -7,24 +7,35 @@ function Incidents() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function loadIncidents() {
-    try {
-      const data = await getIncidents()
-      setIncidents(data)
-      setError('')
-    } catch (error) {
-      setError('Failed to load incidents.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    loadIncidents()
+    let isMounted = true
 
-    const interval = setInterval(loadIncidents, 30000)
+    async function fetchIncidents() {
+      try {
+        const data = await getIncidents()
+        if (isMounted) {
+          setIncidents(data)
+          setError('')
+        }
+      } catch {
+        if (isMounted) {
+          setError('Failed to load incidents.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
 
-    return () => clearInterval(interval)
+    fetchIncidents()
+
+    const interval = setInterval(fetchIncidents, 30000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   const activeCount = incidents.filter(

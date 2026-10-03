@@ -16,29 +16,47 @@ function useMonitorHistory(monitorId) {
       const data = await getMonitorHistory(monitorId)
       setHistory(data)
       setError('')
-    } catch (error) {
+    } catch {
       setError('Failed to load monitor history.')
     }
   }, [monitorId])
 
   useEffect(() => {
+    let isMounted = true
+
     if (!monitorId) {
-      setHistory([])
-      setLoading(false)
       return
     }
 
     async function loadHistory() {
       setLoading(true)
-      await refreshHistory()
-      setLoading(false)
+      try {
+        const data = await getMonitorHistory(monitorId)
+        if (isMounted) {
+          setHistory(data)
+          setError('')
+        }
+      } catch {
+        if (isMounted) {
+          setError('Failed to load monitor history.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
     }
 
     loadHistory()
 
-    const interval = setInterval(refreshHistory, 30000)
+    const interval = setInterval(() => {
+      refreshHistory()
+    }, 30000)
 
-    return () => clearInterval(interval)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [monitorId, refreshHistory])
 
   return {

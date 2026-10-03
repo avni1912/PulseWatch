@@ -28,9 +28,9 @@ function AddMonitorModal({ onClose, onAddMonitor }) {
       await onAddMonitor({
         name: name.trim(),
         url: url.trim(),
-        interval: Number(interval),
+        interval_minutes: Number(interval),
       })
-    } catch (error) {
+    } catch {
       setError('Failed to create monitor.')
     }
   }

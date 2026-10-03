@@ -38,13 +38,17 @@ function App() {
     (monitor) => monitor.status === 'Down'
   ).length
 
+  const monitorsWithLatency = monitors.filter(
+    (monitor) => typeof monitor.latency_ms === 'number' && monitor.latency_ms > 0
+  )
+
   const averageLatency =
-    monitors.length > 0
+    monitorsWithLatency.length > 0
       ? Math.round(
-          monitors.reduce(
-            (total, monitor) => total + (monitor.latency_ms || 0),
+          monitorsWithLatency.reduce(
+            (total, monitor) => total + monitor.latency_ms,
             0
-          ) / monitors.length
+          ) / monitorsWithLatency.length
         )
       : 0
 
@@ -54,7 +58,7 @@ function App() {
         const data = await getMonitors()
         setMonitors(data)
         setError('')
-      } catch (error) {
+      } catch {
         setError('Failed to load monitors.')
       } finally {
         setLoading(false)
@@ -78,7 +82,7 @@ function App() {
       ])
 
       setIsModalOpen(false)
-    } catch (error) {
+    } catch {
       setError('Failed to create monitor.')
     }
   }
@@ -94,7 +98,7 @@ function App() {
       if (selectedMonitorId === monitorId) {
         await refreshHistory()
       }
-    } catch (error) {
+    } catch {
       setError('Failed to check monitor.')
     }
   }
@@ -255,7 +259,7 @@ function App() {
                           }
 
                           setError('')
-                        } catch (error) {
+                        } catch {
                           setError('Failed to delete monitor.')
                         }
                       }}
@@ -401,6 +405,7 @@ function App() {
 
       {editingMonitor && (
         <EditMonitorModal
+          key={editingMonitor.id}
           monitor={editingMonitor}
           onClose={() => setEditingMonitor(null)}
           onUpdate={handleUpdateMonitor}

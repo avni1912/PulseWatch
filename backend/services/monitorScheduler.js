@@ -46,6 +46,8 @@ async function resolveIncidentIfNeeded(monitorId) {
   }
 }
 
+const scheduledTimers = new Map()
+
 async function runMonitorCheck(monitor) {
   try {
     const result = await checkMonitor(monitor.url)
@@ -82,19 +84,40 @@ async function runMonitorCheck(monitor) {
     console.log(
       `Checked ${monitor.name}: ${result.status} (${result.latency ?? '—'}ms)`
     )
+
+    return {
+      id: Number(monitor.id),
+      status: result.status,
+      latency_ms: result.latency,
+      status_code: result.statusCode,
+    }
   } catch (error) {
     console.error(`Failed to check ${monitor.name}:`, error)
+    throw error
+  }
+}
+
+function unscheduleMonitor(monitorId) {
+  const numericId = Number(monitorId)
+  if (scheduledTimers.has(numericId)) {
+    clearInterval(scheduledTimers.get(numericId))
+    scheduledTimers.delete(numericId)
+    console.log(`Unscheduled monitor ${numericId}`)
   }
 }
 
 function scheduleMonitor(monitor) {
-  const interval = monitor.interval_minutes * 60 * 1000
+  unscheduleMonitor(monitor.id)
+
+  const interval = (monitor.interval_minutes || 5) * 60 * 1000
 
   runMonitorCheck(monitor)
 
-  setInterval(() => {
+  const timerId = setInterval(() => {
     runMonitorCheck(monitor)
   }, interval)
+
+  scheduledTimers.set(Number(monitor.id), timerId)
 
   console.log(
     `Scheduled ${monitor.name} every ${monitor.interval_minutes} minute(s)`
@@ -122,4 +145,6 @@ async function startMonitorScheduler() {
 module.exports = {
   startMonitorScheduler,
   scheduleMonitor,
+  unscheduleMonitor,
+  runMonitorCheck,
 }

@@ -1,8 +1,12 @@
 const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
-const { checkMonitor } = require('./services/monitorChecker')
-const { startMonitorScheduler, scheduleMonitor } = require('./services/monitorScheduler')
+const {
+  startMonitorScheduler,
+  scheduleMonitor,
+  unscheduleMonitor,
+  runMonitorCheck,
+} = require('./services/monitorScheduler')
 
 const app = express()
 const PORT = 5000
@@ -34,11 +38,12 @@ app.get('/api/monitors', async (req, res) => {
 
 app.post('/api/monitors', async (req, res) => {
   try {
-    const { name, url, interval } = req.body
+    const { name, url, interval, interval_minutes } = req.body
+    const finalInterval = Number(interval_minutes || interval)
 
-    if (!name || !url || !interval) {
+    if (!name || !url || !finalInterval || finalInterval < 1) {
       return res.status(400).json({
-        message: 'Name, URL and interval are required.',
+        message: 'Name, URL and valid interval (at least 1 minute) are required.',
       })
     }
 
@@ -46,7 +51,7 @@ app.post('/api/monitors', async (req, res) => {
       `INSERT INTO monitors
        (name, url, interval_minutes, status)
        VALUES (?, ?, ?, ?)`,
-      [name, url, interval, 'Pending']
+      [name, url, finalInterval, 'Pending']
     )
 
     const [rows] = await pool.query(
@@ -64,47 +69,6 @@ app.post('/api/monitors', async (req, res) => {
 
     res.status(500).json({
       message: 'Failed to create monitor',
-    })
-  }
-})
-
-app.get('/api/monitors/:id/check', async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const [rows] = await pool.query(
-      'SELECT * FROM monitors WHERE id = ?',
-      [id]
-    )
-
-    if (rows.length === 0) {
-      return res.status(404).json({
-        message: 'Monitor not found',
-      })
-    }
-
-    const monitor = rows[0]
-
-    const result = await checkMonitor(monitor.url)
-
-    await pool.query(
-      `UPDATE monitors
-       SET status = ?, latency_ms = ?
-       WHERE id = ?`,
-      [result.status, result.latency, id]
-    )
-
-    const [updatedRows] = await pool.query(
-      'SELECT * FROM monitors WHERE id = ?',
-      [id]
-    )
-
-    res.json(updatedRows[0])
-  } catch (error) {
-    console.error(error)
-
-    res.status(500).json({
-      message: 'Failed to check monitor',
     })
   }
 })
@@ -168,28 +132,9 @@ app.get('/api/monitors/:id/check', async (req, res) => {
     }
 
     const monitor = rows[0]
-    const result = await checkMonitor(monitor.url)
+    const checkResult = await runMonitorCheck(monitor)
 
-    await pool.query(
-      `UPDATE monitors
-       SET status = ?, latency_ms = ?
-       WHERE id = ?`,
-      [result.status, result.latency, id]
-    )
-
-    await pool.query(
-      `INSERT INTO monitor_checks
-       (monitor_id, status, latency_ms, status_code)
-       VALUES (?, ?, ?, ?)`,
-      [id, result.status, result.latency, result.statusCode]
-    )
-
-    res.json({
-      id: Number(id),
-      status: result.status,
-      latency_ms: result.latency,
-      status_code: result.statusCode,
-    })
+    res.json(checkResult)
   } catch (error) {
     console.error(error)
 
@@ -229,9 +174,10 @@ app.get('/api/incidents', async (req, res) => {
 app.put('/api/monitors/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { name, url, interval_minutes } = req.body
+    const { name, url, interval, interval_minutes } = req.body
+    const finalInterval = Number(interval_minutes || interval)
 
-    if (!name || !url || !interval_minutes) {
+    if (!name || !url || !finalInterval) {
       return res.status(400).json({
         message: 'Name, URL, and interval are required',
       })
@@ -241,7 +187,7 @@ app.put('/api/monitors/:id', async (req, res) => {
       `UPDATE monitors
        SET name = ?, url = ?, interval_minutes = ?
        WHERE id = ?`,
-      [name, url, interval_minutes, id]
+      [name, url, finalInterval, id]
     )
 
     const [monitors] = await pool.query(
@@ -255,7 +201,10 @@ app.put('/api/monitors/:id', async (req, res) => {
       })
     }
 
-    res.json(monitors[0])
+    const updatedMonitor = monitors[0]
+    scheduleMonitor(updatedMonitor)
+
+    res.json(updatedMonitor)
   } catch (error) {
     console.error('Failed to update monitor:', error)
 
@@ -268,6 +217,8 @@ app.put('/api/monitors/:id', async (req, res) => {
 app.delete('/api/monitors/:id', async (req, res) => {
   try {
     const { id } = req.params
+
+    unscheduleMonitor(id)
 
     const [result] = await pool.query(
       'DELETE FROM monitors WHERE id = ?',
